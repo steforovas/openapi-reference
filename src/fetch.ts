@@ -1,4 +1,3 @@
-import axios from "axios";
 import * as fs from "fs";
 import {
   loadOpenApiConfig,
@@ -19,18 +18,26 @@ export async function fetchOpenApiSpec(): Promise<OpenAPISpec> {
   console.log(`Fetching OpenAPI document from: ${config.openapiUrl}`);
 
   try {
-    const response = await axios.get(config.openapiUrl, {
+    const response = await fetch(config.openapiUrl, {
       headers: {
         Accept: "application/json",
       },
-      timeout: 30000,
+      signal: AbortSignal.timeout(30_000),
     });
 
-    if (!response.data) {
+    if (!response.ok) {
+      throw new Error(
+        `HTTP ${response.status} error fetching OpenAPI document:\n` +
+          `${response.statusText}`
+      );
+    }
+
+    const spec = (await response.json()) as OpenAPISpec;
+
+    if (!spec) {
       throw new Error("Empty response from OpenAPI URL");
     }
 
-    const spec = response.data as OpenAPISpec;
     if (!spec.openapi && !spec.swagger) {
       throw new Error("Response does not appear to be a valid OpenAPI document");
     }
@@ -49,21 +56,27 @@ export async function fetchOpenApiSpec(): Promise<OpenAPISpec> {
 
     return spec;
   } catch (error: any) {
-    if (axios.isAxiosError(error)) {
-      if (error.code === "ECONNREFUSED" || error.code === "ENOTFOUND") {
-        throw new Error(
-          `Cannot connect to OpenAPI URL: ${config.openapiUrl}\n` +
-            `Error: ${error.message}`
-        );
-      }
-      if (error.response) {
-        throw new Error(
-          `HTTP ${error.response.status} error fetching OpenAPI document:\n` +
-            `${error.response.statusText}`
-        );
-      }
+    if (error instanceof Error && error.message.startsWith("HTTP ")) {
+      throw error;
+    }
+
+    const cause = error?.cause;
+    const code = cause?.code || error?.code;
+    if (code === "ECONNREFUSED" || code === "ENOTFOUND") {
+      throw new Error(
+        `Cannot connect to OpenAPI URL: ${config.openapiUrl}\n` +
+          `Error: ${error.message}`
+      );
+    }
+
+    if (error?.name === "TimeoutError" || error?.name === "AbortError") {
       throw new Error(`Network error fetching OpenAPI document: ${error.message}`);
     }
+
+    if (error instanceof TypeError || cause) {
+      throw new Error(`Network error fetching OpenAPI document: ${error.message}`);
+    }
+
     throw error;
   }
 }
