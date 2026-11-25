@@ -1,0 +1,37 @@
+{
+  "name": "openapi-reference",
+  "version": "0.1.0",
+  "description": "Fetch, split, and track an OpenAPI document from a URL",
+  "license": "MIT",
+  "type": "commonjs",
+  "bin": {
+    "openapi-reference": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "openapi-config.example.yaml",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "test": "tsx --test test/**/*.ts",
+    "openapi:fetch": "tsx src/cli.ts fetch",
+    "openapi:parse": "tsx src/cli.ts parse",
+    "openapi:split": "tsx src/cli.ts split",
+    "openapi:types": "tsx src/cli.ts types",
+    "openapi:changes": "tsx src/cli.ts changes",
+    "openapi:all": "tsx src/cli.ts all"
+  },
+  "dependencies": {
+    "axios": "^1.10.0",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.7.9",
+    "tsx": "^4.20.3",
+    "typescript": "^5.4.5"
+  }
+}
