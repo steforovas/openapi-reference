@@ -487,6 +487,17 @@ export function ensureDir(dirPath: string): void {
   }
 }
 
+/**
+ * create a cache directory and keep its contents out of git
+ */
+export function ensureIgnoredCache(cacheDir: string): void {
+  ensureDir(cacheDir);
+  const gitignorePath = path.join(cacheDir, ".gitignore");
+  if (!fs.existsSync(gitignorePath)) {
+    fs.writeFileSync(gitignorePath, "*\n", "utf8");
+  }
+}
+
 export function writeJsonFile(filePath: string, data: any): void {
   ensureDir(path.dirname(filePath));
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + "\n", "utf8");

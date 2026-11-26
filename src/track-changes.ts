@@ -2,7 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import {
   calculateHash,
-  ensureDir,
+  ensureIgnoredCache,
   writeJsonFile,
   readJsonFile,
   OpenAPISpec,
@@ -104,7 +104,7 @@ export function trackChanges(serviceName: string): ChangeReport | null {
   const currentHash = calculateHash(currentSpec);
 
   const cacheDir = servicePaths(serviceName).cache;
-  ensureDir(cacheDir);
+  ensureIgnoredCache(cacheDir);
 
   const cacheFiles = fs
     .readdirSync(cacheDir)
