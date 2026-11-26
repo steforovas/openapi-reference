@@ -4,21 +4,32 @@ import {
   ensureDir,
   writeJsonFile,
   OpenAPISpec,
-  specFilePath,
+  ServiceConfig,
+  servicePaths,
+  resolveServiceNameFromSpec,
+  assertServiceNameAvailable,
+  writeServiceMeta,
+  resolveServiceName,
 } from "./utils";
-import * as path from "path";
 
 /**
- * fetch the openapi document and save it locally
+ * fetch every configured openapi document
  */
-export async function fetchOpenApiSpec(): Promise<OpenAPISpec> {
+export async function fetchAllServices(): Promise<void> {
   const config = loadOpenApiConfig();
-  const outputPath = specFilePath();
+  for (const service of config.services) {
+    await fetchService(service);
+  }
+}
 
-  console.log(`Fetching OpenAPI document from: ${config.openapiUrl}`);
+/**
+ * fetch one openapi document and save it under openapi/{serviceName}/
+ */
+export async function fetchService(service: ServiceConfig): Promise<OpenAPISpec> {
+  console.log(`Fetching OpenAPI document from: ${service.url}`);
 
   try {
-    const response = await fetch(config.openapiUrl, {
+    const response = await fetch(service.url, {
       headers: {
         Accept: "application/json",
       },
@@ -46,10 +57,16 @@ export async function fetchOpenApiSpec(): Promise<OpenAPISpec> {
       throw new Error("OpenAPI document is missing 'paths'");
     }
 
-    ensureDir(path.dirname(outputPath));
-    writeJsonFile(outputPath, spec);
+    const serviceName = resolveServiceNameFromSpec(service, spec);
+    assertServiceNameAvailable(serviceName, service.url);
 
-    console.log(`OpenAPI document saved to: ${outputPath}`);
+    const paths = servicePaths(serviceName);
+    ensureDir(paths.root);
+    writeJsonFile(paths.spec, spec);
+    writeServiceMeta(serviceName, service.url);
+
+    console.log(`OpenAPI document saved to: ${paths.spec}`);
+    console.log(`   Service: ${serviceName}`);
     console.log(`   Version: ${spec.openapi || spec.swagger}`);
     console.log(`   Title: ${spec.info?.title || "N/A"}`);
     console.log(`   Paths: ${Object.keys(spec.paths).length}`);
@@ -64,7 +81,7 @@ export async function fetchOpenApiSpec(): Promise<OpenAPISpec> {
     const code = cause?.code || error?.code;
     if (code === "ECONNREFUSED" || code === "ENOTFOUND") {
       throw new Error(
-        `Cannot connect to OpenAPI URL: ${config.openapiUrl}\n` +
+        `Cannot connect to OpenAPI URL: ${service.url}\n` +
           `Error: ${error.message}`
       );
     }
@@ -82,10 +99,10 @@ export async function fetchOpenApiSpec(): Promise<OpenAPISpec> {
 }
 
 /**
- * load the previously fetched openapi document
+ * load the previously fetched openapi document for a service
  */
-export function loadOpenApiSpec(): OpenAPISpec {
-  const filePath = specFilePath();
+export function loadOpenApiSpec(serviceName: string): OpenAPISpec {
+  const filePath = servicePaths(serviceName).spec;
 
   if (!fs.existsSync(filePath)) {
     throw new Error(
@@ -102,4 +119,18 @@ export function loadOpenApiSpec(): OpenAPISpec {
   }
 
   return spec;
+}
+
+/**
+ * resolve each configured service name (config or previous fetch meta)
+ */
+export function resolveConfiguredServices(): Array<{
+  service: ServiceConfig;
+  name: string;
+}> {
+  const config = loadOpenApiConfig();
+  return config.services.map((service) => ({
+    service,
+    name: resolveServiceName(service),
+  }));
 }

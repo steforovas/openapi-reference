@@ -1,8 +1,8 @@
 import * as fs from "fs";
 import * as path from "path";
 import { splitByDomains } from "./split";
-import { loadOpenApiConfig, openApiTypeToTypeScript, ensureDir, OpenAPISpec } from "./utils";
-import { loadOpenApiSpec } from "./fetch";
+import { openApiTypeToTypeScript, ensureDir, OpenAPISpec, servicePaths } from "./utils";
+import { loadOpenApiSpec, resolveConfiguredServices } from "./fetch";
 
 function generateInterface(schemaName: string, schema: any, spec: OpenAPISpec): string {
   const lines: string[] = [];
@@ -114,17 +114,25 @@ function generateDomainTypes(
 }
 
 /**
- * write typescript types for every domain
+ * write typescript types for every configured service
  */
-export function generateTypes(): void {
-  const config = loadOpenApiConfig();
-  const spec = loadOpenApiSpec();
-  const domains = splitByDomains();
+export function generateAllTypes(): void {
+  for (const { name } of resolveConfiguredServices()) {
+    generateTypes(name);
+  }
+}
 
-  const outputDir = path.resolve(process.cwd(), config.typesOutputDir as string);
+/**
+ * write typescript types for every domain of one service
+ */
+export function generateTypes(serviceName: string): void {
+  const spec = loadOpenApiSpec(serviceName);
+  const domains = splitByDomains(serviceName);
+
+  const outputDir = servicePaths(serviceName).types;
   ensureDir(outputDir);
 
-  console.log(`\nGenerating TypeScript types...`);
+  console.log(`\nGenerating TypeScript types (${serviceName})...`);
 
   let totalTypes = 0;
 

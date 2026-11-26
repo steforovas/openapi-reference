@@ -1,28 +1,37 @@
 import * as path from "path";
 import { parseOpenApiSpec } from "./parse";
+import { resolveConfiguredServices } from "./fetch";
 import {
-  loadOpenApiConfig,
   normalizeDomainName,
   getReferencedSchemas,
   resolveSchema,
   ensureDir,
   writeJsonFile,
   DomainData,
+  servicePaths,
 } from "./utils";
 
 /**
- * split the document into one file per tag
+ * split every configured service by tags
  */
-export function splitByDomains(): Map<string, DomainData> {
-  const config = loadOpenApiConfig();
-  const parsed = parseOpenApiSpec();
+export function splitAllServices(): void {
+  for (const { name } of resolveConfiguredServices()) {
+    splitByDomains(name);
+  }
+}
+
+/**
+ * split the document into one file per tag for one service
+ */
+export function splitByDomains(serviceName: string): Map<string, DomainData> {
+  const parsed = parseOpenApiSpec(serviceName);
   const spec = parsed.spec;
   const domains = new Map<string, DomainData>();
 
-  const outputDir = path.resolve(process.cwd(), config.outputDir as string);
+  const outputDir = servicePaths(serviceName).domains;
   ensureDir(outputDir);
 
-  console.log(`\nSplitting OpenAPI document by tags...`);
+  console.log(`\nSplitting OpenAPI document by tags (${serviceName})...`);
 
   for (const [tagName, tagInfo] of Array.from(parsed.tags.entries())) {
     const domainName = normalizeDomainName(tagName);

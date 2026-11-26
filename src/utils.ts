@@ -3,12 +3,27 @@ import * as path from "path";
 import * as yaml from "js-yaml";
 import crypto from "crypto";
 
+export interface ServiceConfig {
+  url: string;
+  name?: string;
+}
+
 export interface OpenApiConfig {
-  openapiUrl: string;
-  outputDir?: string;
-  typesOutputDir?: string;
-  cacheDir?: string;
-  domains?: Record<string, { tag: string; description?: string }>;
+  services: ServiceConfig[];
+}
+
+export interface ServiceMeta {
+  url: string;
+  name: string;
+}
+
+export interface ServicePaths {
+  root: string;
+  spec: string;
+  domains: string;
+  types: string;
+  cache: string;
+  meta: string;
 }
 
 export interface OpenAPISpec {
@@ -33,6 +48,25 @@ export interface DomainData {
   schemas: Record<string, any>;
 }
 
+export function openapiRoot(): string {
+  return path.join(process.cwd(), "openapi");
+}
+
+/**
+ * paths for one service under openapi/{serviceName}/
+ */
+export function servicePaths(serviceName: string): ServicePaths {
+  const root = path.join(openapiRoot(), serviceName);
+  return {
+    root,
+    spec: path.join(root, "api-docs.json"),
+    domains: path.join(root, "domains"),
+    types: path.join(root, "types"),
+    cache: path.join(root, ".cache"),
+    meta: path.join(root, "service.json"),
+  };
+}
+
 /**
  * load openapi-config.yaml from the current working directory
  */
@@ -41,22 +75,128 @@ export function loadOpenApiConfig(): OpenApiConfig {
 
   if (!fs.existsSync(configPath)) {
     throw new Error(
-      "openapi-config.yaml not found in project root. Please create it with required openapiUrl."
+      "openapi-config.yaml not found in project root. Please create it with a services list."
     );
   }
 
   const configContent = fs.readFileSync(configPath, "utf8");
   const config = yaml.load(configContent) as OpenApiConfig;
 
-  if (!config.openapiUrl) {
-    throw new Error("openapiUrl is required in openapi-config.yaml");
+  if (!config.services || !Array.isArray(config.services) || config.services.length === 0) {
+    throw new Error("services is required in openapi-config.yaml and must be a non-empty list");
   }
 
-  config.outputDir = config.outputDir || "./openapi/domains";
-  config.typesOutputDir = config.typesOutputDir || "./openapi/types";
-  config.cacheDir = config.cacheDir || "./openapi/.cache";
+  for (const [index, service] of config.services.entries()) {
+    if (!service || typeof service !== "object" || !service.url) {
+      throw new Error(`services[${index}].url is required in openapi-config.yaml`);
+    }
+  }
 
   return config;
+}
+
+/**
+ * find a previously fetched service folder by matching url in service.json
+ */
+export function findServiceNameByUrl(url: string): string | null {
+  const root = openapiRoot();
+  if (!fs.existsSync(root)) {
+    return null;
+  }
+
+  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+
+    const metaPath = path.join(root, entry.name, "service.json");
+    if (!fs.existsSync(metaPath)) {
+      continue;
+    }
+
+    const meta = readJsonFile(metaPath) as ServiceMeta | null;
+    if (meta?.url === url) {
+      return meta.name || entry.name;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * resolve service folder name from config or a previous fetch
+ */
+export function resolveServiceName(service: ServiceConfig): string {
+  if (service.name) {
+    const name = normalizeDomainName(service.name);
+    if (!name) {
+      throw new Error(`Invalid service name '${service.name}'`);
+    }
+    return name;
+  }
+
+  const found = findServiceNameByUrl(service.url);
+  if (found) {
+    return found;
+  }
+
+  throw new Error(
+    `Service name not found for ${service.url}.\n` +
+      `Run 'openapi-reference fetch' first, or set name in openapi-config.yaml.`
+  );
+}
+
+/**
+ * resolve service name from config or the fetched document title
+ */
+export function resolveServiceNameFromSpec(
+  service: ServiceConfig,
+  spec: OpenAPISpec
+): string {
+  if (service.name) {
+    const name = normalizeDomainName(service.name);
+    if (!name) {
+      throw new Error(`Invalid service name '${service.name}'`);
+    }
+    return name;
+  }
+
+  const title = spec.info?.title;
+  if (!title) {
+    throw new Error(
+      `name is required for ${service.url} when the OpenAPI document has no info.title`
+    );
+  }
+
+  const name = normalizeDomainName(title);
+  if (!name) {
+    throw new Error(
+      `Could not derive a service name from info.title '${title}'. Set name in openapi-config.yaml.`
+    );
+  }
+
+  return name;
+}
+
+/**
+ * fail when another service already owns this folder name
+ */
+export function assertServiceNameAvailable(serviceName: string, url: string): void {
+  const paths = servicePaths(serviceName);
+  if (!fs.existsSync(paths.meta)) {
+    return;
+  }
+
+  const meta = readJsonFile(paths.meta) as ServiceMeta | null;
+  if (meta?.url && meta.url !== url) {
+    throw new Error(
+      `Service folder '${serviceName}' is already used by ${meta.url}. Choose a different name.`
+    );
+  }
+}
+
+export function writeServiceMeta(serviceName: string, url: string): void {
+  writeJsonFile(servicePaths(serviceName).meta, { url, name: serviceName });
 }
 
 /**
@@ -315,8 +455,4 @@ export function readJsonFile(filePath: string): any {
   }
   const content = fs.readFileSync(filePath, "utf8");
   return JSON.parse(content);
-}
-
-export function specFilePath(): string {
-  return path.join(process.cwd(), "openapi", "api-docs.json");
 }

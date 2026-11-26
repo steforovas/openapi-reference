@@ -1,31 +1,36 @@
 #!/usr/bin/env node
 
-import { fetchOpenApiSpec } from "./fetch";
-import { parseOpenApiSpec } from "./parse";
-import { splitByDomains } from "./split";
-import { generateTypes } from "./generate-types";
-import { trackChanges } from "./track-changes";
+import { fetchAllServices, fetchService } from "./fetch";
+import { parseAllServices, parseOpenApiSpec } from "./parse";
+import { splitAllServices, splitByDomains } from "./split";
+import { generateAllTypes, generateTypes } from "./generate-types";
+import { trackAllChanges, trackChanges } from "./track-changes";
+import { loadOpenApiConfig, resolveServiceName } from "./utils";
 
 const commands: Record<string, () => Promise<unknown> | unknown> = {
-  fetch: () => fetchOpenApiSpec(),
+  fetch: () => fetchAllServices(),
   parse: () => {
-    parseOpenApiSpec();
+    parseAllServices();
   },
   split: () => {
-    splitByDomains();
+    splitAllServices();
   },
   types: () => {
-    generateTypes();
+    generateAllTypes();
   },
   changes: () => {
-    trackChanges();
+    trackAllChanges();
   },
   all: async () => {
-    await fetchOpenApiSpec();
-    parseOpenApiSpec();
-    splitByDomains();
-    generateTypes();
-    trackChanges();
+    const config = loadOpenApiConfig();
+    for (const service of config.services) {
+      await fetchService(service);
+      const name = resolveServiceName(service);
+      parseOpenApiSpec(name);
+      splitByDomains(name);
+      generateTypes(name);
+      trackChanges(name);
+    }
   },
 };
 

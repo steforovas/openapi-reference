@@ -1,4 +1,4 @@
-import { loadOpenApiSpec } from "./fetch";
+import { loadOpenApiSpec, resolveConfiguredServices } from "./fetch";
 import { OpenAPISpec } from "./utils";
 
 export interface ParsedSpec {
@@ -8,10 +8,19 @@ export interface ParsedSpec {
 }
 
 /**
- * parse and validate the fetched openapi document
+ * parse every configured service
  */
-export function parseOpenApiSpec(): ParsedSpec {
-  const spec = loadOpenApiSpec();
+export function parseAllServices(): void {
+  for (const { name } of resolveConfiguredServices()) {
+    parseOpenApiSpec(name);
+  }
+}
+
+/**
+ * parse and validate the fetched openapi document for one service
+ */
+export function parseOpenApiSpec(serviceName: string): ParsedSpec {
+  const spec = loadOpenApiSpec(serviceName);
 
   if (!spec.openapi && !spec.swagger) {
     throw new Error("Invalid OpenAPI document: missing 'openapi' or 'swagger' field");
@@ -70,7 +79,7 @@ export function parseOpenApiSpec(): ParsedSpec {
     }
   }
 
-  console.log(`Parsed OpenAPI document:`);
+  console.log(`Parsed OpenAPI document (${serviceName}):`);
   console.log(`   Version: ${spec.openapi || spec.swagger}`);
   console.log(`   Title: ${spec.info?.title || "N/A"}`);
   console.log(`   Tags: ${tags.size}`);

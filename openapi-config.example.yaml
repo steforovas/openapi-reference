@@ -1,17 +1,7 @@
-# required: url of the openapi document
-openapiUrl: "http://localhost:8080/v3/api-docs"
-
-# directory for one json file per tag
-outputDir: "./openapi/domains"
-
-# directory for generated typescript types
-typesOutputDir: "./openapi/types"
-
-# directory for cached documents and change reports
-cacheDir: "./openapi/.cache"
-
-# optional tag overrides
-# domains:
-#   examinations:
-#     tag: "Examinations"
-#     description: "Examination management"
+# one entry per api service
+# name is optional: if omitted, it is derived from the document info.title on fetch
+services:
+  - url: "http://localhost:8080/v3/api-docs"
+    name: examinations
+  - url: "http://localhost:8081/v3/api-docs"
+    # name omitted → uses info.title (normalized to kebab-case)

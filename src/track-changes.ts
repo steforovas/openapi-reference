@@ -1,14 +1,14 @@
 import * as fs from "fs";
 import * as path from "path";
 import {
-  loadOpenApiConfig,
   calculateHash,
   ensureDir,
   writeJsonFile,
   readJsonFile,
   OpenAPISpec,
+  servicePaths,
 } from "./utils";
-import { loadOpenApiSpec } from "./fetch";
+import { loadOpenApiSpec, resolveConfiguredServices } from "./fetch";
 
 export interface ChangeReport {
   timestamp: string;
@@ -88,14 +88,22 @@ function schemaChanged(oldSchema: any, newSchema: any): boolean {
 }
 
 /**
- * compare the current document with the last cached copy
+ * track changes for every configured service
  */
-export function trackChanges(): ChangeReport | null {
-  const config = loadOpenApiConfig();
-  const currentSpec = loadOpenApiSpec();
+export function trackAllChanges(): void {
+  for (const { name } of resolveConfiguredServices()) {
+    trackChanges(name);
+  }
+}
+
+/**
+ * compare the current document with the last cached copy for one service
+ */
+export function trackChanges(serviceName: string): ChangeReport | null {
+  const currentSpec = loadOpenApiSpec(serviceName);
   const currentHash = calculateHash(currentSpec);
 
-  const cacheDir = path.resolve(process.cwd(), config.cacheDir as string);
+  const cacheDir = servicePaths(serviceName).cache;
   ensureDir(cacheDir);
 
   const cacheFiles = fs
@@ -116,11 +124,11 @@ export function trackChanges(): ChangeReport | null {
   }
 
   if (previousHash === currentHash) {
-    console.log("No changes detected");
+    console.log(`No changes detected (${serviceName})`);
     return null;
   }
 
-  console.log(`\nTracking changes...`);
+  console.log(`\nTracking changes (${serviceName})...`);
   console.log(`   Current hash: ${currentHash}`);
   console.log(`   Previous hash: ${previousHash || "none"}`);
 
