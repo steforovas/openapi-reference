@@ -1,7 +1,10 @@
 # one entry per api service
 # name is optional: if omitted, it is derived from the document info.title on fetch
+# types is optional: set true to generate typescript types (default false)
 services:
   - url: "http://localhost:8080/v3/api-docs"
     name: examinations
+    types: true
   - url: "http://localhost:8081/v3/api-docs"
     # name omitted → uses info.title (normalized to kebab-case)
+    # types omitted → false (no typescript generation)

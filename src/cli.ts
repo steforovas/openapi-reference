@@ -5,7 +5,7 @@ import { parseAllServices, parseOpenApiSpec } from "./parse";
 import { splitAllServices, splitByDomains } from "./split";
 import { generateAllTypes, generateTypes } from "./generate-types";
 import { trackAllChanges, trackChanges } from "./track-changes";
-import { resolveServiceName, selectServices } from "./utils";
+import { resolveServiceName, selectServices, serviceWantsTypes } from "./utils";
 
 async function runAll(serviceFilter?: string): Promise<void> {
   for (const service of selectServices(serviceFilter)) {
@@ -13,7 +13,9 @@ async function runAll(serviceFilter?: string): Promise<void> {
     const name = resolveServiceName(service);
     parseOpenApiSpec(name);
     splitByDomains(name);
-    generateTypes(name);
+    if (serviceWantsTypes(service)) {
+      generateTypes(name);
+    }
     trackChanges(name);
   }
 }

@@ -1,7 +1,13 @@
 import * as fs from "fs";
 import * as path from "path";
 import { splitByDomains } from "./split";
-import { openApiTypeToTypeScript, ensureDir, OpenAPISpec, servicePaths } from "./utils";
+import {
+  openApiTypeToTypeScript,
+  ensureDir,
+  OpenAPISpec,
+  servicePaths,
+  serviceWantsTypes,
+} from "./utils";
 import { loadOpenApiSpec, resolveConfiguredServices } from "./fetch";
 
 function generateInterface(schemaName: string, schema: any, spec: OpenAPISpec): string {
@@ -114,10 +120,24 @@ function generateDomainTypes(
 }
 
 /**
- * write typescript types for every configured service (or one service when filtered)
+ * write typescript types for services with types: true (or one when filtered)
  */
 export function generateAllTypes(serviceFilter?: string): void {
-  for (const { name } of resolveConfiguredServices(serviceFilter)) {
+  const services = resolveConfiguredServices(serviceFilter).filter(({ service }) =>
+    serviceWantsTypes(service)
+  );
+
+  if (services.length === 0) {
+    if (serviceFilter) {
+      throw new Error(
+        `Service '${serviceFilter}' does not have types: true in openapi-config.yaml`
+      );
+    }
+    console.log("Skipping TypeScript generation: no services have types: true");
+    return;
+  }
+
+  for (const { name } of services) {
     generateTypes(name);
   }
 }

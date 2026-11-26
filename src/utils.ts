@@ -6,6 +6,8 @@ import crypto from "crypto";
 export interface ServiceConfig {
   url: string;
   name?: string;
+  // when true, generate typescript types for this service (default false)
+  types?: boolean;
 }
 
 export interface OpenApiConfig {
@@ -90,9 +92,14 @@ export function loadOpenApiConfig(): OpenApiConfig {
     if (!service || typeof service !== "object" || !service.url) {
       throw new Error(`services[${index}].url is required in openapi-config.yaml`);
     }
+    service.types = service.types === true;
   }
 
   return config;
+}
+
+export function serviceWantsTypes(service: ServiceConfig): boolean {
+  return service.types === true;
 }
 
 /**

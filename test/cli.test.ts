@@ -177,7 +177,13 @@ describe("openapi-reference cli", () => {
 
     writeConfig(
       fixtureDir,
-      ["services:", `  - url: "${url}"`, "    name: pets-api", ""].join("\n")
+      [
+        "services:",
+        `  - url: "${url}"`,
+        "    name: pets-api",
+        "    types: true",
+        "",
+      ].join("\n")
     );
     seedService(fixtureDir, "pets-api", url, fixtureSpec);
 
@@ -302,6 +308,27 @@ describe("openapi-reference cli", () => {
     const result = await runCli(fixtureDir, ["all", "missing-api"]);
     assert.equal(result.code, 1);
     assert.match(result.stderr, /No service named 'missing-api'/);
+
+    fs.rmSync(fixtureDir, { recursive: true, force: true });
+  });
+
+  it("skips type generation by default", async () => {
+    const fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), "openapi-reference-no-types-"));
+    const url = "http://localhost:9/no-types";
+
+    writeConfig(
+      fixtureDir,
+      ["services:", `  - url: "${url}"`, "    name: pets-api", ""].join("\n")
+    );
+    seedService(fixtureDir, "pets-api", url, fixtureSpec);
+
+    const typesResult = await runCli(fixtureDir, ["types"]);
+    assert.equal(typesResult.code, 0, typesResult.stderr);
+    assert.match(typesResult.stdout, /Skipping TypeScript generation/);
+    assert.ok(
+      !fs.existsSync(path.join(fixtureDir, "openapi", "pets-api", "types", "pets.ts")),
+      "types should not be generated when types is omitted"
+    );
 
     fs.rmSync(fixtureDir, { recursive: true, force: true });
   });
