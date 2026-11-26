@@ -5,37 +5,39 @@ import { parseAllServices, parseOpenApiSpec } from "./parse";
 import { splitAllServices, splitByDomains } from "./split";
 import { generateAllTypes, generateTypes } from "./generate-types";
 import { trackAllChanges, trackChanges } from "./track-changes";
-import { loadOpenApiConfig, resolveServiceName } from "./utils";
+import { resolveServiceName, selectServices } from "./utils";
 
-const commands: Record<string, () => Promise<unknown> | unknown> = {
-  fetch: () => fetchAllServices(),
-  parse: () => {
-    parseAllServices();
+async function runAll(serviceFilter?: string): Promise<void> {
+  for (const service of selectServices(serviceFilter)) {
+    await fetchService(service);
+    const name = resolveServiceName(service);
+    parseOpenApiSpec(name);
+    splitByDomains(name);
+    generateTypes(name);
+    trackChanges(name);
+  }
+}
+
+const commands: Record<string, (serviceFilter?: string) => Promise<unknown> | unknown> = {
+  fetch: (serviceFilter) => fetchAllServices(serviceFilter),
+  parse: (serviceFilter) => {
+    parseAllServices(serviceFilter);
   },
-  split: () => {
-    splitAllServices();
+  split: (serviceFilter) => {
+    splitAllServices(serviceFilter);
   },
-  types: () => {
-    generateAllTypes();
+  types: (serviceFilter) => {
+    generateAllTypes(serviceFilter);
   },
-  changes: () => {
-    trackAllChanges();
+  changes: (serviceFilter) => {
+    trackAllChanges(serviceFilter);
   },
-  all: async () => {
-    const config = loadOpenApiConfig();
-    for (const service of config.services) {
-      await fetchService(service);
-      const name = resolveServiceName(service);
-      parseOpenApiSpec(name);
-      splitByDomains(name);
-      generateTypes(name);
-      trackChanges(name);
-    }
-  },
+  all: (serviceFilter) => runAll(serviceFilter),
 };
 
 async function main(): Promise<void> {
   const command = process.argv[2] || "all";
+  const serviceFilter = process.argv[3];
   const run = commands[command];
 
   if (!run) {
@@ -45,7 +47,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  await run();
+  await run(serviceFilter);
 }
 
 main().catch((error: any) => {

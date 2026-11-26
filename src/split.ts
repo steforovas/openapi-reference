@@ -12,10 +12,10 @@ import {
 } from "./utils";
 
 /**
- * split every configured service by tags
+ * split every configured service by tags (or one service when filtered)
  */
-export function splitAllServices(): void {
-  for (const { name } of resolveConfiguredServices()) {
+export function splitAllServices(serviceFilter?: string): void {
+  for (const { name } of resolveConfiguredServices(serviceFilter)) {
     splitByDomains(name);
   }
 }

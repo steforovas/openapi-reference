@@ -88,10 +88,10 @@ function schemaChanged(oldSchema: any, newSchema: any): boolean {
 }
 
 /**
- * track changes for every configured service
+ * track changes for every configured service (or one service when filtered)
  */
-export function trackAllChanges(): void {
-  for (const { name } of resolveConfiguredServices()) {
+export function trackAllChanges(serviceFilter?: string): void {
+  for (const { name } of resolveConfiguredServices(serviceFilter)) {
     trackChanges(name);
   }
 }

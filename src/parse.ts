@@ -8,10 +8,10 @@ export interface ParsedSpec {
 }
 
 /**
- * parse every configured service
+ * parse every configured service (or one service when filtered)
  */
-export function parseAllServices(): void {
-  for (const { name } of resolveConfiguredServices()) {
+export function parseAllServices(serviceFilter?: string): void {
+  for (const { name } of resolveConfiguredServices(serviceFilter)) {
     parseOpenApiSpec(name);
   }
 }

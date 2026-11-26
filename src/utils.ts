@@ -96,6 +96,42 @@ export function loadOpenApiConfig(): OpenApiConfig {
 }
 
 /**
+ * return configured services, optionally filtered by service name
+ */
+export function selectServices(serviceFilter?: string): ServiceConfig[] {
+  const config = loadOpenApiConfig();
+  if (!serviceFilter) {
+    return config.services;
+  }
+
+  const normalized = normalizeDomainName(serviceFilter);
+  if (!normalized) {
+    throw new Error(`Invalid service name '${serviceFilter}'`);
+  }
+
+  const matched = config.services.filter((service) => {
+    if (service.name && normalizeDomainName(service.name) === normalized) {
+      return true;
+    }
+
+    try {
+      return resolveServiceName(service) === normalized;
+    } catch {
+      return false;
+    }
+  });
+
+  if (matched.length === 0) {
+    throw new Error(
+      `No service named '${serviceFilter}' found in openapi-config.yaml.\n` +
+        `Use a configured name, or a previously fetched service folder name.`
+    );
+  }
+
+  return matched;
+}
+
+/**
  * find a previously fetched service folder by matching url in service.json
  */
 export function findServiceNameByUrl(url: string): string | null {

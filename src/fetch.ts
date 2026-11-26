@@ -1,6 +1,5 @@
 import * as fs from "fs";
 import {
-  loadOpenApiConfig,
   ensureDir,
   writeJsonFile,
   OpenAPISpec,
@@ -10,14 +9,14 @@ import {
   assertServiceNameAvailable,
   writeServiceMeta,
   resolveServiceName,
+  selectServices,
 } from "./utils";
 
 /**
- * fetch every configured openapi document
+ * fetch every configured openapi document (or one service when filtered)
  */
-export async function fetchAllServices(): Promise<void> {
-  const config = loadOpenApiConfig();
-  for (const service of config.services) {
+export async function fetchAllServices(serviceFilter?: string): Promise<void> {
+  for (const service of selectServices(serviceFilter)) {
     await fetchService(service);
   }
 }
@@ -124,12 +123,11 @@ export function loadOpenApiSpec(serviceName: string): OpenAPISpec {
 /**
  * resolve each configured service name (config or previous fetch meta)
  */
-export function resolveConfiguredServices(): Array<{
+export function resolveConfiguredServices(serviceFilter?: string): Array<{
   service: ServiceConfig;
   name: string;
 }> {
-  const config = loadOpenApiConfig();
-  return config.services.map((service) => ({
+  return selectServices(serviceFilter).map((service) => ({
     service,
     name: resolveServiceName(service),
   }));

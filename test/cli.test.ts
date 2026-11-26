@@ -252,4 +252,57 @@ describe("openapi-reference cli", () => {
       fs.rmSync(fixtureDir, { recursive: true, force: true });
     }
   });
+
+  it("runs all for one service only", async () => {
+    const fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), "openapi-reference-one-"));
+    const petsServer = await startJsonServer(fixtureSpec);
+    const otherSpec = {
+      ...fixtureSpec,
+      info: { title: "Other API", version: "1.0.0" },
+    };
+    const otherServer = await startJsonServer(otherSpec);
+
+    try {
+      writeConfig(
+        fixtureDir,
+        [
+          "services:",
+          `  - url: "${petsServer.url}"`,
+          "    name: pets-api",
+          `  - url: "${otherServer.url}"`,
+          "    name: other-api",
+          "",
+        ].join("\n")
+      );
+
+      const result = await runCli(fixtureDir, ["all", "pets-api"]);
+      assert.equal(result.code, 0, result.stderr);
+      assert.match(result.stdout, /Service: pets-api/);
+      assert.doesNotMatch(result.stdout, /Service: other-api/);
+
+      assert.ok(fs.existsSync(path.join(fixtureDir, "openapi", "pets-api", "api-docs.json")));
+      assert.ok(
+        !fs.existsSync(path.join(fixtureDir, "openapi", "other-api", "api-docs.json")),
+        "other-api should not be fetched"
+      );
+    } finally {
+      await petsServer.close();
+      await otherServer.close();
+      fs.rmSync(fixtureDir, { recursive: true, force: true });
+    }
+  });
+
+  it("fails when the service filter does not match", async () => {
+    const fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), "openapi-reference-missing-"));
+    writeConfig(
+      fixtureDir,
+      ["services:", '  - url: "http://localhost:9/unused"', "    name: pets-api", ""].join("\n")
+    );
+
+    const result = await runCli(fixtureDir, ["all", "missing-api"]);
+    assert.equal(result.code, 1);
+    assert.match(result.stderr, /No service named 'missing-api'/);
+
+    fs.rmSync(fixtureDir, { recursive: true, force: true });
+  });
 });

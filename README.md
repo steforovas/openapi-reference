@@ -44,4 +44,11 @@ npx openapi-reference changes
 npx openapi-reference all
 ```
 
-Every command runs for all configured services. `all` runs fetch, parse, split, types, then changes per service.
+Every command runs for all configured services. Pass a service name to target one:
+
+```bash
+npx openapi-reference all examinations
+npx openapi-reference fetch examinations
+```
+
+`all` runs fetch, parse, split, types, then changes per selected service.

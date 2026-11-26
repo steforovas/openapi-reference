@@ -114,10 +114,10 @@ function generateDomainTypes(
 }
 
 /**
- * write typescript types for every configured service
+ * write typescript types for every configured service (or one service when filtered)
  */
-export function generateAllTypes(): void {
-  for (const { name } of resolveConfiguredServices()) {
+export function generateAllTypes(serviceFilter?: string): void {
+  for (const { name } of resolveConfiguredServices(serviceFilter)) {
     generateTypes(name);
   }
 }
